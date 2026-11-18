@@ -109,3 +109,22 @@ function yearlyBalances(P, annualRate, n, pmt) {
 }
 function parseDate(s) { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
 function todayISO() { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+
+// ---- 2026 US federal tax (IRS Rev. Proc. 2025-32) ----
+const TAX2026 = {
+  std: { single: 16100, mfj: 32200, hoh: 24150 },
+  brackets: {
+    single: [[12400, .10], [50400, .12], [105700, .22], [201775, .24], [256225, .32], [640600, .35], [Infinity, .37]],
+    mfj: [[24800, .10], [100800, .12], [211400, .22], [403550, .24], [512450, .32], [768700, .35], [Infinity, .37]],
+    hoh: [[17700, .10], [67450, .12], [105700, .22], [201750, .24], [256200, .32], [640600, .35], [Infinity, .37]],
+  },
+  ssBase: 184500, addlMedicare: { single: 200000, mfj: 250000, hoh: 200000 }
+};
+function fedTax(taxable, status) {
+  let tax = 0, prev = 0, top = 0;
+  for (const [cap, r] of TAX2026.brackets[status] || TAX2026.brackets.single) {
+    if (taxable > prev) { tax += (Math.min(taxable, cap) - prev) * r; top = r; }
+    prev = cap;
+  }
+  return { tax: Math.max(0, tax), top };
+}

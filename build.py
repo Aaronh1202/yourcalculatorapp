@@ -2,7 +2,7 @@ import re, json, os, pathlib, shutil, datetime
 OUT = pathlib.Path("public")
 if OUT.exists(): shutil.rmtree(OUT)
 OUT.mkdir()
-for f in ["style.css", "calc.js", "sci.js"]: shutil.copy("static/" + f, OUT / f)
+for f in ["style.css", "calc.js", "sci.js", "invoice.js"]: shutil.copy("static/" + f, OUT / f)
 SITE = "YourCalculatorApp"
 DOMAIN = "https://yourcalculatorapp.com"
 CONTACT = os.environ.get("CONTACT_EMAIL", "hello@example.com")
@@ -46,8 +46,8 @@ GRADES = [("4.0", "A / A+"), ("3.7", "A-"), ("3.3", "B+"), ("3.0", "B"), ("2.7",
 
 # ---------- calculators ----------
 CALCS = []
-def add(slug, cat, emoji, name, card, title, desc, tool, content, intro=None):
-    CALCS.append(dict(slug=slug, cat=cat, emoji=emoji, name=name, card=card, title=title, desc=desc, tool=tool, content=content, intro=intro))
+def add(slug, cat, emoji, name, card, title, desc, tool, content, intro=None, hidden=False):
+    CALCS.append(dict(slug=slug, cat=cat, emoji=emoji, name=name, card=card, title=title, desc=desc, tool=tool, content=content, intro=intro, hidden=hidden))
 
 add("mortgage-calculator", "Financial", "🏠", "Mortgage Calculator", "Monthly house payment with taxes & insurance",
     "Mortgage Calculator – Monthly Payment with Taxes & Insurance",
@@ -300,6 +300,175 @@ add("grade-calculator", "Everyday", "📝", "Grade Calculator", "Test score % an
 <p class="formula">Needed on final = (goal − current × (1 − weight)) ÷ weight</p>
 <h2>What do I need on my final?</h2><p>Enter your current grade, the grade you want and how much the final is worth (check your syllabus). The calculator shows the exact score you need.</p>""")
 
+# ---------- money & business calculators (added) ----------
+NO_TAX_STATES = [("TX", "Texas"), ("FL", "Florida"), ("TN", "Tennessee"), ("WA", "Washington"), ("NV", "Nevada"), ("AK", "Alaska"), ("SD", "South Dakota"), ("WY", "Wyoming"), ("NH", "New Hampshire")]
+PAY_JS = """calc(v=>{const per={52:"week",26:"2 weeks",24:"half-month",12:"month"},f=v.freq,gross=v.type==="hourly"?v.amt*(v.hours||40)*52:v.amt;if(!(gross>0)||!f)return null;
+const k4=gross*(v.k401||0)/100,hl=(v.health||0)*f,fw=Math.max(0,gross-hl),ss=Math.min(fw,TAX2026.ssBase)*.062,med=fw*.0145+Math.max(0,fw-200000)*.009;
+const ft=fedTax(Math.max(0,gross-k4-hl-TAX2026.std[v.status]),v.status),st=v.state==="other"?Math.max(0,gross-k4-hl)*(v.srate||0)/100:0;
+const net=gross-k4-hl-ft.tax-ss-med-st,p=x=>money(x/f);
+return{big:["Take-home pay per paycheck",p(net)],sub:money(net,0)+" a year · paid every "+per[f],rows:[["Gross pay",p(gross)],["Federal income tax",p(ft.tax)],["Social Security (6.2%)",p(ss)],["Medicare (1.45%)",p(med)],["State income tax",v.state==="other"?p(st):"$0.00 (no state income tax)"],...(k4?[["401(k)",p(k4)]]:[]),...(hl?[["Health insurance",p(hl)]]:[]),["Federal tax bracket",Math.round(ft.top*100)+"%"],["Total tax rate",pct((ft.tax+ss+med+st)/gross*100,1)]],
+chart:donut([["Take-home",net,"#10b981"],["Federal tax",ft.tax,"#6366f1"],["Social Security & Medicare",ss+med,"#ec4899"],["State tax",st,"#f59e0b"],["401(k) & benefits",k4+hl,"#06b6d4"]].filter(x=>x[1]>0)),note:"2026 estimate using IRS tax brackets and the standard deduction. Your real withholding depends on your W-4 and benefits."}})"""
+
+def paycheck_tool(state="TX"):
+    opts = [(c, n + " (no state income tax)") for c, n in NO_TAX_STATES] + [("other", "Another state (enter its rate)")]
+    return calc_box(
+        SEG("type", "How are you paid?", [("salary", "Salary (per year)"), ("hourly", "Hourly")], "salary") +
+        N("amt", "Pay amount", 60000, "$", full=True) +
+        when("type=hourly", N("hours", "Hours per week", 40, full=True)) +
+        S("freq", "Pay frequency", [(26, "Every 2 weeks"), (52, "Weekly"), (24, "Twice a month"), (12, "Monthly")], 26) +
+        S("status", "Filing status", [("single", "Single"), ("mfj", "Married filing jointly"), ("hoh", "Head of household")], "single") +
+        S("state", "State", opts, state, full=True) +
+        when("state=other", N("srate", "Your state income tax rate", 4.5, suf="%", full=True)) +
+        N("k401", "401(k) contribution", 0, suf="% of pay") + N("health", "Health insurance", 0, "$", suf="/ check"),
+        PAY_JS)
+
+STATE_LINKS = '<div class="statelinks">' + "".join(f'<a href="{n.lower().replace(" ", "-")}-paycheck-calculator">{n}</a>' for c, n in NO_TAX_STATES) + "</div>"
+PAY_CONTENT = """<h2>How your paycheck is calculated</h2><p>Start with your gross pay, then subtract pre-tax benefits like a 401(k) and health insurance. Federal income tax is figured with the 2026 IRS brackets after the standard deduction ($16,100 single, $32,200 married). Then Social Security (6.2%, on the first $184,500) and Medicare (1.45%) come out, plus state income tax if your state has one.</p>
+<p class="formula">Take-home = gross pay − pre-tax benefits − federal tax − Social Security − Medicare − state tax</p>
+<h2>Why is my paycheck different?</h2><p>Your employer withholds based on your W-4 form, so extra withholding, dependents, or other income can change the real number. Local taxes, union dues, HSA contributions and wage garnishments aren't included here.</p>
+<h2>Paycheck calculators by state</h2><p>These states have no state income tax on wages, so more of your paycheck stays with you:</p>""" + STATE_LINKS
+
+add("paycheck-calculator", "Financial", "💸", "Paycheck Calculator", "Take-home pay after 2026 taxes",
+    "Paycheck Calculator 2026 – Take-Home Pay After Taxes",
+    "Free 2026 paycheck calculator. See your take-home pay after federal tax, Social Security, Medicare and state tax for salary or hourly pay, per paycheck and per year.",
+    paycheck_tool("TX"), PAY_CONTENT)
+
+for code, sname in NO_TAX_STATES:
+    slug = sname.lower().replace(" ", "-") + "-paycheck-calculator"
+    add(slug, "Financial", "💸", f"{sname} Paycheck Calculator", f"Take-home pay in {sname}",
+        f"{sname} Paycheck Calculator 2026 – Take-Home Pay After Taxes",
+        f"Free {sname} paycheck calculator for 2026. {sname} has no state income tax, so see your take-home pay after federal tax, Social Security and Medicare.",
+        paycheck_tool(code),
+        f"""<h2>{sname} paycheck taxes</h2><p>{sname} doesn't tax wages, so your paycheck only has federal income tax, Social Security (6.2%) and Medicare (1.45%) taken out, plus any benefits you choose. That means you keep more of each paycheck than workers in most other states.</p>
+<h2>How the calculator works</h2><p>Enter your salary or hourly wage and how often you're paid. Federal tax uses the 2026 IRS brackets and the standard deduction. Pre-tax 401(k) and health insurance lower your taxable income.</p>
+<h2>Other paycheck calculators</h2><p>See the <a href="paycheck-calculator">main paycheck calculator</a> or another no-income-tax state:</p>""" + STATE_LINKS, hidden=True)
+
+add("house-affordability-calculator", "Financial", "🏡", "How Much House Can I Afford", "Max home price for your income",
+    "How Much House Can I Afford? – Home Affordability Calculator",
+    "Find out how much house you can afford based on your income, debts and down payment. Uses the 28/36 rule lenders use, with taxes and insurance included.",
+    calc_box(
+        N("income", "Yearly household income (before tax)", 90000, "$", full=True) +
+        N("debts", "Monthly debt payments", 400, "$") + N("down", "Down payment saved", 30000, "$") +
+        N("rate", "Mortgage rate", 6.5, suf="%") + S("years", "Loan term", [(30, "30 years"), (15, "15 years")], 30) +
+        N("ptax", "Property tax rate", 1.6, suf="% / yr") + N("ins", "Home insurance", 2000, "$", suf="/ yr") + N("hoa", "HOA", 0, "$", suf="/ mo"),
+        """calc(v=>{const inc=v.income/12;if(!(inc>0))return null;const M=Math.min(inc*.28,inc*.36-(v.debts||0));if(M<=0)return{error:"Your monthly debts are too high for a typical mortgage at this income"};
+const n=v.years*12,r=(v.rate||0)/1200,k=r?r/(1-Math.pow(1+r,-n)):1/n,fix=(v.ins||0)/12+(v.hoa||0),dn=v.down||0,price=(M-fix+dn*k)/(k+(v.ptax||0)/1200);if(!(price>0))return null;
+const loan=Math.max(0,price-dn),pi=loan*k,tx=price*(v.ptax||0)/1200,tot=pi+tx+fix;
+return{big:["You can afford a home up to",money(price,0)],sub:"Monthly payment about "+money(tot,0),rows:[["Loan amount",money(loan,0)],["Down payment",money(dn,0)+" ("+pct(dn/price*100,1)+")"],["Principal & interest",money(pi)],["Property tax",money(tx)],["Insurance + HOA",money(fix)],["Housing cost ratio (limit 28%)",pct(tot/inc*100,1)],["Total debt ratio (limit 36%)",pct((tot+(v.debts||0))/inc*100,1)]],
+chart:donut([["Principal & interest",pi],["Property tax",tx],["Insurance & HOA",fix]].filter(x=>x[1]>0)),note:"Uses the 28/36 rule many lenders start with. FHA and some other loans allow higher ratios. Under 20% down usually adds mortgage insurance (PMI)."}})"""),
+    """<h2>How much house can I afford?</h2><p>Most lenders use the <b>28/36 rule</b>: your housing payment (mortgage, property tax, insurance and HOA) should be no more than 28% of your gross monthly income, and all your debts together no more than 36%. This calculator finds the highest home price that fits both limits.</p>
+<h2>How to afford more house</h2><ul><li>Pay down car loans, student loans or credit cards to free up room in the 36% limit.</li><li>Save a bigger down payment.</li><li>Shop around for a lower mortgage rate, since even 0.5% makes a big difference.</li><li>Look at areas with lower property taxes.</li></ul>""")
+
+add("budget-calculator", "Financial", "📒", "Budget Calculator", "50/30/20 monthly budget planner",
+    "Budget Calculator – Free 50/30/20 Monthly Budget Planner",
+    "Free monthly budget calculator. Enter your take-home pay and expenses to see what's left over and how you compare to the 50/30/20 budget rule.",
+    calc_box(
+        N("income", "Monthly take-home pay", 4500, "$", full=True) +
+        N("rent", "Rent / mortgage", 1400, "$") + N("util", "Utilities & phone", 250, "$") + N("food", "Groceries", 500, "$") + N("car", "Car & gas", 450, "$") +
+        N("ins", "Insurance", 200, "$") + N("debt", "Debt payments", 200, "$") + N("subs", "Subscriptions", 60, "$") + N("fun", "Eating out & fun", 400, "$") + N("save", "Savings & investing", 500, "$", full=True),
+        """calc(v=>{const I=v.income;if(!(I>0))return null;const g=k=>v[k]||0,needs=g("rent")+g("util")+g("food")+g("car")+g("ins")+g("debt"),wants=g("subs")+g("fun"),sv=g("save"),left=I-needs-wants-sv;
+return{big:[left>=0?"Left over each month":"Over budget by",money(Math.abs(left))],sub:left>=0?"Put it toward savings or paying off debt.":"Trim some spending to break even.",rows:[["Needs (target 50%)",money(needs,0)+" · "+pct(needs/I*100,0)],["Wants (target 30%)",money(wants,0)+" · "+pct(wants/I*100,0)],["Savings (target 20%)",money(sv,0)+" · "+pct(sv/I*100,0)],["50/30/20 targets",money(I*.5,0)+" / "+money(I*.3,0)+" / "+money(I*.2,0)]],
+chart:donut([["Needs",needs,"#6366f1"],["Wants",wants,"#ec4899"],["Savings",sv,"#10b981"],["Left over",Math.max(0,left),"#f59e0b"]].filter(x=>x[1]>0))}})"""),
+    """<h2>The 50/30/20 budget rule</h2><p>A simple way to split your take-home pay: <b>50% for needs</b> (housing, food, utilities, transportation, minimum debt payments), <b>30% for wants</b> (eating out, entertainment, shopping) and <b>20% for savings</b> and extra debt payoff.</p>
+<h2>Tips to stick to your budget</h2><ul><li>Set up automatic transfers to savings on payday so you save first.</li><li>Review subscriptions every few months and cancel ones you don't use.</li><li>Build an emergency fund of 3–6 months of needs before investing heavily.</li></ul>""")
+
+DEBT_ROWS = "".join(f'<tr><td><span class="inp"><input name="n{i}" placeholder="Debt {i + 1}" value="{n}"></span></td><td><span class="inp"><input type="number" inputmode="decimal" name="b{i}" placeholder="0" value="{b}"></span></td><td><span class="inp"><input type="number" inputmode="decimal" name="r{i}" placeholder="0" value="{r}"></span></td><td><span class="inp"><input type="number" inputmode="decimal" name="m{i}" placeholder="0" value="{m}"></span></td></tr>'
+    for i, (n, b, r, m) in enumerate([("Credit card", 4200, 24.9, 120), ("Car loan", 9800, 7.5, 290), ("Store card", 900, 29.9, 35), ("", "", "", ""), ("", "", "", "")]))
+add("debt-payoff-calculator", "Financial", "❄️", "Debt Payoff Calculator", "Snowball vs avalanche payoff plan",
+    "Debt Payoff Calculator – Debt Snowball & Avalanche Planner",
+    "Free debt payoff calculator. Compare the debt snowball and avalanche methods, see your debt-free date and how much interest extra payments save.",
+    calc_box(f'<div class="field full"><table class="grid debts"><tr><th>Debt</th><th>Balance $</th><th>APR %</th><th>Min $</th></tr>{DEBT_ROWS}</table></div>' +
+        N("extra", "Extra payment each month", 200, "$", full=True) +
+        SEG("method", "Payoff method", [("snowball", "Snowball (smallest first)"), ("avalanche", "Avalanche (highest rate first)")], "snowball"),
+        """calc(v=>{const ds=[];for(let i=0;i<5;i++){const b=v["b"+i];if(b>0)ds.push({n:v["n"+i]||"Debt "+(i+1),b,r:(v["r"+i]||0)/1200,m:v["m"+i]||0})}if(!ds.length)return null;
+const sim=(extra,roll)=>{const d=ds.map(x=>({...x})),order=[],budget=ds.reduce((s,x)=>s+x.m,0)+extra;let mo=0,int=0;
+while(d.some(x=>x.b>.005)&&mo<600){mo++;d.forEach(x=>{if(x.b>0){const i=x.b*x.r;x.b+=i;int+=i}});let pool=roll?budget:extra;
+d.forEach(x=>{if(x.b>0){const p=Math.min(x.b,x.m);x.b-=p;if(roll)pool-=p}});
+d.filter(x=>x.b>.005).sort(v.method==="avalanche"?(a,b)=>b.r-a.r||a.b-b.b:(a,b)=>a.b-b.b).forEach(x=>{if(pool>0){const p=Math.min(x.b,pool);x.b-=p;pool-=p}});
+d.forEach(x=>{if(x.b<=.005&&!x.done){x.done=1;x.b=0;order.push([x.n,mo])}})}return{mo,int,order,ok:mo<600}};
+const a=sim(v.extra||0,true),b=sim(0,false);if(!a.ok)return{error:"Your payments don't cover the interest. Raise your payments to see a payoff date."};
+const yr=m=>Math.floor(m/12)+" yr "+(m%12)+" mo",d=new Date();d.setMonth(d.getMonth()+a.mo);
+return{big:["Debt-free in",yr(a.mo)],sub:"by "+d.toLocaleDateString("en-US",{month:"long",year:"numeric"}),rows:[["Total interest",money(a.int,0)],...(b.ok?[["Interest saved vs. minimums",money(b.int-a.int,0)],["Time saved",yr(Math.max(0,b.mo-a.mo))]]:[["Minimum payments only","Never paid off"]]),...a.order.map((x,i)=>[(i+1)+". "+x[0]+" paid off","month "+x[1]])]}})""", title="Your debts"),
+    """<h2>Debt snowball vs. debt avalanche</h2><p>Both methods pay the minimum on every debt and put every extra dollar toward one target debt. When it's paid off, its payment rolls into the next one, so your payments snowball.</p><ul><li><b>Snowball:</b> pay off the smallest balance first. Quick wins keep you motivated.</li><li><b>Avalanche:</b> pay off the highest interest rate first. This saves the most money.</li></ul>
+<h2>How to get out of debt faster</h2><ul><li>Even $50–$100 extra a month can cut years off your payoff.</li><li>Ask your card company for a lower rate, or look into a 0% balance transfer.</li><li>Put tax refunds and bonuses straight toward your target debt.</li></ul>""")
+
+PM = (mini("pm1", "Profit margin from cost and price", N("c", "Cost", 40, "$") + N("p", "Selling price", 65, "$"),
+          "v=>{if(!(v.p>0))return null;const pr=v.p-v.c;return{big:['Profit margin',pct(pr/v.p*100,2)],rows:[['Profit',money(pr)],['Markup',v.c>0?pct(pr/v.c*100,2):'—']]}}") +
+      mini("pm2", "Price for a target margin", N("c", "Cost", 40, "$") + N("m", "Desired margin", 35, suf="%"),
+          "v=>{if(!(v.m<100))return{error:'Margin must be under 100%'};const p=v.c/(1-v.m/100);return{big:['Sell it for',money(p)],rows:[['Profit',money(p-v.c)],['Markup',pct((p-v.c)/v.c*100,2)]]}}") +
+      mini("pm3", "Price from a markup", N("c", "Cost", 40, "$") + N("k", "Markup", 50, suf="%"),
+          "v=>{if(!(v.c>0))return null;const p=v.c*(1+v.k/100);return{big:['Selling price',money(p)],rows:[['Profit',money(p-v.c)],['Profit margin',pct((p-v.c)/p*100,2)]]}}"))
+add("profit-margin-calculator", "Business", "📈", "Profit Margin Calculator", "Margin, markup and selling price",
+    "Profit Margin Calculator – Margin, Markup & Selling Price",
+    "Free profit margin calculator. Find your profit margin and markup from cost and price, or work out the selling price you need for a target margin.",
+    '<div class="stack" style="margin-top:-14px;position:relative">' + PM + "</div>",
+    """<h2>Margin vs. markup</h2><p><b>Margin</b> is profit as a percent of the selling price. <b>Markup</b> is profit as a percent of the cost. If something costs $40 and sells for $65, the profit is $25: a 38.5% margin but a 62.5% markup.</p>
+<p class="formula">Margin = (price − cost) ÷ price &nbsp;·&nbsp; Markup = (price − cost) ÷ cost</p>
+<h2>What's a good profit margin?</h2><p>It depends on the industry. Grocery stores run on 1–3% net margins, restaurants 3–10%, and software or services can reach 20% or more. For product pricing, many small businesses aim for at least a 30–50% gross margin to cover overhead.</p>""")
+
+add("break-even-calculator", "Business", "⚖️", "Break-Even Calculator", "Units and sales needed to profit",
+    "Break-Even Calculator – Find Your Break-Even Point",
+    "Free break-even calculator. Find how many units you need to sell to cover your costs, your break-even revenue and the sales needed to hit a profit goal.",
+    calc_box(N("fixed", "Fixed costs per month", 5000, "$", full=True) + N("price", "Price per unit", 50, "$") + N("varc", "Variable cost per unit", 20, "$") + N("goal", "Profit goal per month (optional)", 0, "$", full=True),
+        """calc(v=>{const cm=v.price-v.varc;if(!(v.price>0))return null;if(!(cm>0))return{error:"Your price must be higher than your variable cost per unit"};
+const u=(v.fixed||0)/cm,ug=((v.fixed||0)+(v.goal||0))/cm;return{big:["Break-even point",num(Math.ceil(u),0)+" units"],sub:money(Math.ceil(u)*v.price,0)+" in sales per month",rows:[["Profit per unit",money(cm)],["Contribution margin",pct(cm/v.price*100,1)],...(v.goal>0?[["Units for your profit goal",num(Math.ceil(ug),0)],["Sales for your profit goal",money(Math.ceil(ug)*v.price,0)]]:[]),["Units per day (30-day month)",num(u/30,1)]]}})"""),
+    """<h2>How to calculate break-even</h2><p>Each sale brings in its price minus its variable cost (materials, shipping, fees). That's your <b>contribution margin</b>. Divide your fixed costs (rent, salaries, software) by it to see how many sales cover them.</p>
+<p class="formula">Break-even units = fixed costs ÷ (price − variable cost per unit)</p>
+<h2>How to lower your break-even point</h2><ul><li>Raise prices, even slightly.</li><li>Cut variable costs with better suppliers or cheaper shipping.</li><li>Reduce fixed costs like rent or unused subscriptions.</li></ul>""")
+
+add("self-employment-tax-calculator", "Business", "🧾", "Self-Employment Tax Calculator", "1099 and quarterly tax estimate",
+    "Self-Employment Tax Calculator 2026 – 1099 & Quarterly Taxes",
+    "Free 2026 self-employment tax calculator for freelancers and 1099 workers. Estimate SE tax, federal income tax and your quarterly estimated payments.",
+    calc_box(N("inc", "1099 / business income", 75000, "$", suf="/ yr") + N("exp", "Business expenses", 12000, "$", suf="/ yr") +
+        S("status", "Filing status", [("single", "Single"), ("mfj", "Married filing jointly"), ("hoh", "Head of household")], "single") +
+        N("w2", "Other W-2 wages (optional)", 0, "$") + N("srate", "State income tax rate", 0, suf="%", full=True),
+        """calc(v=>{const net=(v.inc||0)-(v.exp||0);if(!(net>0))return null;const w2=v.w2||0,base=net*.9235,ssr=Math.max(0,TAX2026.ssBase-w2),ss=Math.min(base,ssr)*.124,med=base*.029,addl=Math.max(0,base+w2-TAX2026.addlMedicare[v.status])*.009,se=ss+med+addl;
+const std=TAX2026.std[v.status],all=fedTax(Math.max(0,net+w2-(ss+med)/2-std),v.status),w2only=fedTax(Math.max(0,w2-std),v.status),fed=all.tax-w2only.tax,st=net*(v.srate||0)/100,tot=se+fed+st;
+return{big:["Quarterly estimated payment",money(tot/4,0)],sub:money(tot,0)+" total for the year",rows:[["Net profit",money(net,0)],["Self-employment tax",money(se,0)],["Federal income tax on this income",money(fed,0)],...(st?[["State income tax",money(st,0)]]:[]),["Set aside from each payment",pct(tot/net*100,1)],["Federal tax bracket",Math.round(all.top*100)+"%"],["2026 due dates","Apr 15 · Jun 15 · Sep 15 · Jan 15"]],
+chart:donut([["Self-employment tax",se,"#ec4899"],["Federal income tax",fed,"#6366f1"],["State tax",st,"#f59e0b"],["You keep",net-tot,"#10b981"]].filter(x=>x[1]>0)),note:"2026 estimate. Doesn't include the 20% QBI deduction or credits, which may lower your bill. Check with a tax pro."}})"""),
+    """<h2>How self-employment tax works</h2><p>When you work for yourself, you pay both the employee and employer share of Social Security and Medicare: <b>15.3%</b> (12.4% + 2.9%). It applies to 92.35% of your net profit, and the Social Security part stops at $184,500 in 2026. You can deduct half of it from your income before federal tax.</p>
+<p class="formula">SE tax = net profit × 92.35% × 15.3%</p>
+<h2>Quarterly estimated taxes</h2><p>Nobody withholds taxes from 1099 income, so the IRS expects you to pay four times a year. For 2026 income, payments are due April 15, June 15, September 15 and January 15, 2027. Paying late can mean an underpayment penalty.</p>
+<h2>How to lower your tax bill</h2><ul><li>Track every business expense: mileage, equipment, software, phone and home office.</li><li>Contribute to a SEP-IRA or Solo 401(k).</li><li>Keep money for taxes in a separate savings account as you get paid.</li></ul>""")
+
+add("solar-panel-calculator", "Financial", "☀️", "Solar Panel Calculator", "System size, cost and payback",
+    "Solar Panel Calculator – Cost, Savings & Payback (2026)",
+    "Free solar panel calculator. Estimate how many panels you need, system size, installed cost, yearly savings and payback period from your electric bill.",
+    calc_box(N("bill", "Average monthly electric bill", 160, "$") + N("rate", "Electricity rate", .17, "$", suf="/ kWh") +
+        N("sun", "Peak sun hours per day", 4.5, suf="hrs") + N("off", "Bill to offset", 100, suf="%") +
+        N("watts", "Panel size", 400, suf="watts") + N("cpw", "Installed cost per watt", 3.0, "$") + N("reb", "Rebates & incentives (optional)", 0, "$", full=True),
+        """calc(v=>{if(!(v.bill>0&&v.rate>0&&v.sun>0))return null;const kwh=v.bill/v.rate,kw=kwh*12*(v.off||100)/100/(365*v.sun*.8),pan=Math.ceil(kw*1000/(v.watts||400)),cost=kw*1000*(v.cpw||0),net=Math.max(0,cost-(v.reb||0));
+let save=v.bill*12*(v.off||100)/100,tot=0,pay=null,cum=0;for(let y=1;y<=25;y++){cum+=save;tot+=save;if(pay===null&&cum>=net)pay=y;save*=1.03*.995}
+return{big:["Estimated payback",pay?pay+" years":"25+ years"],sub:num(pan,0)+" panels · "+num(kw,1)+" kW system",rows:[["Installed cost",money(cost,0)],...(v.reb?[["Cost after rebates",money(net,0)]]:[]),["First-year savings",money(v.bill*12*(v.off||100)/100,0)],["25-year savings",money(tot,0)],["25-year net gain",money(tot-net,0)],["Monthly usage",num(kwh,0)+" kWh"]],note:"Assumes 3% yearly electricity price increases and 0.5% yearly panel wear. The 30% federal tax credit ended for homeowner-bought systems after 2025."}})"""),
+    """<h2>How many solar panels do I need?</h2><p>Divide your monthly bill by your electricity rate to get your usage in kWh. The calculator then sizes a system using your area's peak sun hours, with an 80% efficiency factor for real-world losses like heat, shade and wiring.</p>
+<p class="formula">System size (kW) = yearly kWh ÷ (365 × sun hours × 0.8)</p>
+<h2>Is solar still worth it in 2026?</h2><p>The 30% federal tax credit for homeowners who buy solar ended after December 31, 2025, so payback takes longer than it used to. Solar can still pay off in sunny states with high electricity rates. Check for state and utility rebates, and compare cash, loan and lease options.</p>
+<h2>Peak sun hours by region</h2><p>Southwest US: 5.5–7 hours. Texas and the Southeast: 4.5–5.5. Midwest and Northeast: 3.5–4.5. Pacific Northwest: 3–4.</p>""")
+
+INV_TOOL = '''<div class="invwrap"><form class="panel" id="inv" autocomplete="off" onsubmit="return false"><h2>Invoice details</h2><div class="fields">
+<label class="field">Your business<span class="inp"><input data-f="from" placeholder="Your business name"></span></label>
+<label class="field">Invoice #<span class="inp"><input data-f="num" value="1001"></span></label>
+<label class="field full">Your address / email<span class="inp"><textarea data-f="fromd" style="min-height:60px" placeholder="123 Main St&#10;City, ST 12345&#10;you@email.com"></textarea></span></label>
+<label class="field">Bill to<span class="inp"><input data-f="to" placeholder="Client name"></span></label>
+<label class="field">Currency<span class="inp"><select data-f="cur"><option>USD</option><option>CAD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>MXN</option></select></span></label>
+<label class="field full">Client address / email<span class="inp"><textarea data-f="tod" style="min-height:60px"></textarea></span></label>
+<label class="field">Invoice date<span class="inp"><input type="date" data-f="date"></span></label>
+<label class="field">Due date<span class="inp"><input type="date" data-f="due"></span></label>
+<div class="field full"><table class="grid"><tr><th>Item</th><th>Qty</th><th>Rate</th><th></th></tr><tbody id="items"></tbody></table><button type="button" class="btn" id="add" style="margin-top:6px">+ Add line</button></div>
+<label class="field">Tax %<span class="inp"><input type="number" step="any" data-f="tax" value="0"></span></label>
+<label class="field">Discount %<span class="inp"><input type="number" step="any" data-f="disc" value="0"></span></label>
+<label class="field full">Notes / payment terms<span class="inp"><textarea data-f="notes" style="min-height:60px" placeholder="Payment due within 30 days. Thank you for your business!"></textarea></span></label>
+</div><div class="row noprint" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" id="print">⬇ Download PDF / Print</button><button type="button" class="btn" id="clear">Start over</button></div>
+<p class="note" style="color:var(--muted);font-size:.82rem">Your invoice saves automatically in this browser. Choose "Save as PDF" in the print window to download it.</p></form>
+<div class="invoice" id="preview"></div></div><script src="invoice.js"></script>'''
+add("invoice-generator", "Business", "🧾", "Invoice Generator", "Make and download a PDF invoice",
+    "Free Invoice Generator – Create & Download PDF Invoices",
+    "Free invoice generator. Create a professional invoice online, add line items, tax and discounts, and download it as a PDF. No sign-up, saved in your browser.",
+    INV_TOOL,
+    """<h2>How to make an invoice</h2><ol><li>Add your business name and your client's details.</li><li>Enter each product or service with its quantity and rate. Totals update instantly.</li><li>Add tax, a discount and your payment terms.</li><li>Click <b>Download PDF / Print</b> and choose "Save as PDF".</li></ol>
+<h2>What should an invoice include?</h2><p>A unique invoice number, the date and due date, your and your client's contact details, a clear list of what you're billing for, the total amount due, and how to pay you. Clear payment terms like "Net 30" help you get paid on time.</p>
+<h2>Is my invoice private?</h2><p>Yes. Everything stays in your browser. Nothing is uploaded to our servers.</p>""")
+
 # ---------- home ----------
 K = lambda k, cls="", lab=None: f'<button class="{cls}" data-k="{k}">{lab or k}</button>'
 KEYS = "".join([
@@ -311,15 +480,15 @@ KEYS = "".join([
     '<button class="fn" id="sci-deg">DEG</button>', K("0", "n"), K(".", "n"), K("=", "eq"), K("+", "op"), K("asin(", "fn", "sin⁻¹"),
 ])
 
-CATS = [("Financial", "💰"), ("Math", "➗"), ("Health", "❤️"), ("Everyday", "📅")]
-CAT_COL = {"Financial": ("#e0e7ff", "#4f46e5"), "Math": ("#fce7f3", "#db2777"), "Health": ("#dcfce7", "#16a34a"), "Everyday": ("#fef3c7", "#d97706")}
+CATS = [("Financial", "💰"), ("Business", "💼"), ("Math", "➗"), ("Health", "❤️"), ("Everyday", "📅")]
+CAT_COL = {"Financial": ("#e0e7ff", "#4f46e5"), "Business": ("#e0f2fe", "#0284c7"), "Math": ("#fce7f3", "#db2777"), "Health": ("#dcfce7", "#16a34a"), "Everyday": ("#fef3c7", "#d97706")}
 
 def card(c):
     bg, col = CAT_COL[c["cat"]]
     return f'<a class="card" href="{c["slug"]}" style="--bgc:{bg};--c:{col}"><div class="e">{c["emoji"]}</div><div><b>{c["name"]}</b><span>{c["card"]}</span></div></a>'
 
-CAT_HTML = '<section class="cats">' + "".join(f'<h2>{e} {cat} calculators</h2><div class="grid-cards">' + "".join(card(c) for c in CALCS if c["cat"] == cat) + "</div>" for cat, e in CATS) + "</section>"
-POPULAR = ["mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator", "gpa-calculator", "hours-calculator"]
+CAT_HTML = '<section class="cats">' + "".join(f'<h2>{e} {cat} calculators</h2><div class="grid-cards">' + "".join(card(c) for c in CALCS if c["cat"] == cat and not c["hidden"]) + "</div>" for cat, e in CATS) + "</section>"
+POPULAR = ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator", "gpa-calculator", "hours-calculator"]
 BYSLUG = {c["slug"]: c for c in CALCS}
 HOME_TOOL = f'''<div class="home"><div id="sci"><div class="screen"><div id="sci-expr"></div><div id="sci-display">0</div></div><div class="keys">{KEYS}</div></div>
 <div class="side"><div class="panel"><div class="panelhead"><h2>History</h2><button class="link" id="sci-clearhist">Clear</button></div><ul class="history" id="sci-history"></ul></div>
@@ -330,11 +499,11 @@ HOME_TOOL = f'''<div class="home"><div id="sci"><div class="screen"><div id="sci
 # ---------- page template ----------
 def page(slug, title, desc, h1, sub, tool, content, crumb=None, related=""):
     url = DOMAIN + "/" + ("" if slug == "index" else slug)
-    nav_items = [("./", "All calculators", "index")] + [(s, BYSLUG[s]["name"].replace(" Calculator", ""), s) for s in ["mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator", "gpa-calculator"]]
+    nav_items = [("./", "All calculators", "index")] + [(s, BYSLUG[s]["name"].replace(" Calculator", ""), s) for s in ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator"]]
     nav = "".join(f'<a href="{u}"{" class=active" if k == slug else ""}>{t}</a>' for u, t, k in nav_items)
     ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": h1, "url": url, "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
     cr = f'<div class="crumbs"><a href="./">Calculators</a> › {crumb}</div>' if crumb else ""
-    foot = "".join(f'<a href="{c["slug"]}">{c["name"]}</a>' for c in CALCS)
+    foot = "".join(f'<a href="{c["slug"]}">{c["name"]}</a>' for c in CALCS if not c["hidden"])
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -375,8 +544,9 @@ pages.append(("index", page("index", "Free Online Calculator – Scientific, Mat
 <h2>Keyboard shortcuts</h2><p>Type numbers and + − * / ^ directly. Press Enter for equals, Backspace to delete and Esc to clear.</p>""")))
 
 for c in CALCS:
-    rel = [x for x in CALCS if x["cat"] == c["cat"] and x is not c][:4]
-    rel += [x for x in CALCS if x not in rel and x is not c][: 6 - len(rel)]
+    pool = [x for x in CALCS if not x["hidden"] and x is not c]
+    rel = [x for x in pool if x["cat"] == c["cat"]][:4]
+    rel += [x for x in pool if x not in rel][: 6 - len(rel)]
     related = '<section class="related"><h2>Related calculators</h2><div class="grid-cards">' + "".join(card(x) for x in rel) + "</div></section>"
     pages.append((c["slug"], page(c["slug"], c["title"], c["desc"], c["name"], c["desc"].split(". ")[1] if ". " in c["desc"] else c["desc"],
                                   c["tool"], c["content"], crumb=c["cat"], related=related)))
