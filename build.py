@@ -469,6 +469,96 @@ add("invoice-generator", "Business", "🧾", "Invoice Generator", "Make and down
 <h2>What should an invoice include?</h2><p>A unique invoice number, the date and due date, your and your client's contact details, a clear list of what you're billing for, the total amount due, and how to pay you. Clear payment terms like "Net 30" help you get paid on time.</p>
 <h2>Is my invoice private?</h2><p>Yes. Everything stays in your browser. Nothing is uploaded to our servers.</p>""")
 
+# ---------- business loans & payroll (added) ----------
+APR_JS = "const trueAPR=(net,pmt,n)=>{if(!(net>0&&pmt>0&&n>0))return NaN;let lo=0,hi=1;for(let i=0;i<80;i++){const r=(lo+hi)/2,pv=pmt*(1-Math.pow(1+r,-n))/r;pv>net?lo=r:hi=r}return (lo+hi)/2*1200};"
+add("sba-loan-calculator", "Business", "🏛️", "SBA Loan Calculator", "Monthly payment on SBA 7(a) & 504 loans",
+    "SBA Loan Calculator – SBA 7(a) & 504 Loan Payments",
+    "Free SBA loan calculator. Estimate monthly payments, total interest and guarantee fees for SBA 7(a) and 504 loans for working capital, equipment and real estate.",
+    calc_box(
+        S("years", "Loan use (sets the term)", [(10, "Working capital / equipment – 10 years"), (25, "Real estate – 25 years"), (7, "Short term – 7 years"), (5, "Short term – 5 years")], 10, full=True) +
+        N("amt", "Loan amount", 250000, "$", full=True) + N("rate", "Interest rate", 10.5, suf="%") + N("fee", "SBA guarantee & lender fees", 2, suf="% of loan"),
+        APR_JS + """calc(v=>{const n=v.years*12,p=payment(v.amt,v.rate||0,n);if(!(v.amt>0)||!ok(p))return null;const fee=v.amt*(v.fee||0)/100,ti=p*n-v.amt;
+return{big:["Monthly payment",money(p)],sub:"over "+v.years+" years",rows:[["Total interest",money(ti,0)],["Upfront fees",money(fee,0)],["Total cost of the loan",money(ti+fee,0)],["Total you'll repay",money(p*n,0)],["APR including fees",pct(trueAPR(v.amt-fee,p,n),2)]],chart:donut([["Principal",v.amt],["Interest",ti],["Fees",fee]].filter(x=>x[1]>0))}})"""),
+    """<h2>How SBA loan payments work</h2><p>SBA loans are regular amortizing loans, so you pay the same amount every month until the loan is paid off. Terms are long: up to 10 years for working capital and equipment, and up to 25 years for real estate. Long terms keep monthly payments low.</p>
+<p class="formula">Payment = loan × r ÷ (1 − (1 + r)⁻ⁿ) &nbsp;·&nbsp; r = yearly rate ÷ 12, n = months</p>
+<h2>SBA 7(a) vs. 504 loans</h2><ul><li><b>7(a):</b> the most common SBA loan. Use it for working capital, equipment, inventory, buying a business or real estate.</li><li><b>504:</b> made for big fixed assets like buildings and heavy equipment, usually with a lower, fixed rate on the SBA portion.</li></ul>
+<h2>What rate will I get?</h2><p>SBA rates are set by the lender but capped by SBA rules tied to the Prime Rate. Your rate depends on the loan size, term and your business's credit. Ask lenders for a quote and enter it above.</p>""")
+
+add("business-loan-calculator", "Business", "🏦", "Business Loan Calculator", "Payment and true APR with fees",
+    "Business Loan Calculator – Payment, Total Cost & True APR",
+    "Free business loan calculator. See your monthly payment, total interest and the true APR after origination fees, so you can compare small business loan offers.",
+    calc_box(N("amt", "Loan amount", 50000, "$", full=True) + N("rate", "Interest rate", 12, suf="%") + N("term", "Term", 36, suf="months") + N("fee", "Origination fee", 3, suf="%") +
+        S("freq", "Payments", [(12, "Monthly"), (52, "Weekly"), (260, "Daily (business days)")], 12),
+        APR_JS + """calc(v=>{const f=v.freq,n=Math.round(v.term/12*f);if(!(v.amt>0&&n>0))return null;const r=(v.rate||0)/100/f,p=r?v.amt*r/(1-Math.pow(1+r,-n)):v.amt/n,fee=v.amt*(v.fee||0)/100,ti=p*n-v.amt;
+const mp=p*f/12,apr=f===12?trueAPR(v.amt-fee,p,n):NaN,lbl={12:"Monthly",52:"Weekly",260:"Daily"}[f];
+return{big:[lbl+" payment",money(p)],sub:f!==12?"about "+money(mp,0)+" a month":"",rows:[["Total interest",money(ti,0)],["Origination fee",money(fee,0)],["Cash you actually receive",money(v.amt-fee,0)],["Total cost of borrowing",money(ti+fee,0)],["Total repaid",money(p*n,0)],...(ok(apr)?[["True APR with fees",pct(apr,2)]]:[])],chart:donut([["Principal",v.amt],["Interest",ti],["Fees",fee]].filter(x=>x[1]>0))}})"""),
+    """<h2>Why the true APR matters</h2><p>Many business lenders take an origination fee out of your loan, so you receive less cash but repay the full amount. That makes the real cost higher than the interest rate. The <b>true APR</b> above includes the fee, so you can compare offers fairly.</p>
+<h2>Daily and weekly payments</h2><p>Some online lenders collect payments every business day or every week. That can strain cash flow, so check the monthly equivalent before you sign.</p>
+<h2>Tips for a better business loan</h2><ul><li>Compare at least three offers using the true APR, not just the rate.</li><li>Check for prepayment penalties.</li><li>SBA loans usually have the lowest rates if you qualify.</li></ul>""")
+
+add("equipment-loan-calculator", "Business", "🚜", "Equipment Loan Calculator", "Payments for machinery, trucks & tools",
+    "Equipment Loan Calculator – Equipment Financing Payments",
+    "Free equipment loan calculator. Estimate monthly payments on business equipment, trucks and machinery with down payment, sales tax and a balloon payment option.",
+    calc_box(N("price", "Equipment price", 85000, "$", full=True) + N("down", "Down payment", 10, suf="%") + N("tax", "Sales tax", 8.25, suf="%") +
+        N("rate", "Interest rate", 9, suf="%") + S("months", "Term", [(36, "36 months"), (48, "48 months"), (60, "60 months"), (72, "72 months"), (84, "84 months")], 60) +
+        N("balloon", "Balloon at end (optional)", 0, "$", full=True),
+        """calc(v=>{const tx=v.price*(v.tax||0)/100,dn=v.price*(v.down||0)/100,L=v.price+tx-dn,n=v.months,r=(v.rate||0)/1200,b=v.balloon||0;if(!(L>0))return null;
+const p=r?(L-b/Math.pow(1+r,n))*r/(1-Math.pow(1+r,-n)):(L-b)/n,ti=p*n+b-L;
+return{big:["Monthly payment",money(p)],sub:b?"plus a "+money(b,0)+" balloon at the end":"",rows:[["Amount financed",money(L,0)],["Down payment",money(dn,0)],["Sales tax",money(tx,0)],["Total interest",money(ti,0)],["Total cost of equipment",money(p*n+b+dn,0)]],note:"Business equipment may qualify for a big first-year tax deduction (Section 179). Ask your accountant."}})"""),
+    """<h2>How equipment financing works</h2><p>The equipment itself is the collateral, so equipment loans are often easier to get than other business loans. You usually put 0–20% down and repay over 2–7 years, matching how long the equipment will last.</p>
+<h2>What's a balloon payment?</h2><p>A balloon lowers your monthly payment by leaving a lump sum due at the end. It's useful if you plan to sell or trade in the equipment, but make sure you can cover it when it's due.</p>""")
+
+add("line-of-credit-calculator", "Business", "💳", "Line of Credit Calculator", "Interest and payoff time on a credit line",
+    "Business Line of Credit Calculator – Interest & Payoff Time",
+    "Free business line of credit calculator. See the monthly interest on what you draw, how long it takes to pay off, and the total interest you'll pay.",
+    calc_box(N("bal", "Amount drawn", 25000, "$", full=True) + N("rate", "Interest rate (APR)", 14, suf="%") + N("pay", "Monthly payment", 1200, "$") + N("fee", "Draw fee (optional)", 0, suf="%", full=True),
+        """calc(v=>{if(!(v.bal>0))return null;const r=(v.rate||0)/1200,io=v.bal*r,fee=v.bal*(v.fee||0)/100;if(!(v.pay>io))return{big:["Interest-only payment",money(io)],rows:[["Draw fee",money(fee)]],note:"Your payment needs to be more than "+money(io)+" to pay down the balance."};
+let b=v.bal,m=0,ti=0;while(b>0&&m<600){const i=b*r;ti+=i;b=b+i-v.pay;m++}
+return{big:["Paid off in",Math.floor(m/12)+" yr "+(m%12)+" mo"],sub:m+" monthly payments",rows:[["Interest-only payment",money(io)],["Total interest",money(ti,0)],["Draw fee",money(fee,0)],["Total cost of borrowing",money(ti+fee,0)]],chart:donut([["Amount drawn",v.bal],["Interest",ti],["Fees",fee]].filter(x=>x[1]>0))}})"""),
+    """<h2>How a business line of credit works</h2><p>A line of credit works like a business credit card with a lower rate. You get a limit, draw only what you need, and pay interest only on what you've used. As you repay, the money becomes available again.</p>
+<h2>Line of credit vs. term loan</h2><p>Use a line of credit for short-term needs like inventory, payroll gaps or seasonal swings. Use a term loan for big one-time purchases you'll pay off over years.</p>""")
+
+PAYROLL_JS = """calc(v=>{const f=v.freq,g=v.type==="hourly"?(v.rate||0)*(v.hours||0)+(v.ot||0)*(v.rate||0)*1.5:v.amt/f;if(!(g>0)||!f)return null;
+const yr=g*f,k4=g*(v.k401||0)/100,ss=g*.062,med=g*.0145,ft=fedTax(Math.max(0,yr-k4*f-TAX2026.std[v.status]),v.status).tax/f,st=g*(v.srate||0)/100,net=g-k4-ss-med-ft-st;
+const futa=Math.min(g,7000/f)*.006,suta=Math.min(g,(v.sutabase||0)/f)*(v.suta||0)/100,er=ss+med+futa+suta;
+return{big:["Employee net pay",money(net)],sub:"per paycheck · total cost to you "+money(g+er),rows:[["Gross pay",money(g)],["Federal income tax (est.)",money(ft)],["Social Security (employee)",money(ss)],["Medicare (employee)",money(med)],...(st?[["State income tax",money(st)]]:[]),...(k4?[["401(k)",money(k4)]]:[]),["Employer Social Security + Medicare",money(ss+med)],["Employer FUTA",money(futa)],["Employer state unemployment",money(suta)],["Total employer taxes",money(er)]],
+chart:donut([["Net pay",net,"#10b981"],["Employee taxes",ss+med+ft+st,"#6366f1"],["Employer taxes",er,"#ec4899"],["401(k)",k4,"#06b6d4"]].filter(x=>x[1]>0)),note:"2026 estimate for a single paycheck early in the year. Actual withholding follows the employee's W-4 and IRS Publication 15-T."}})"""
+add("payroll-calculator", "Business", "🧑‍💼", "Payroll Calculator", "Employee net pay + employer taxes",
+    "Payroll Calculator 2026 – Employee Net Pay & Employer Taxes",
+    "Free payroll calculator for small businesses. Work out an employee's net pay, withholding, and your employer payroll taxes (Social Security, Medicare, FUTA, SUTA) per paycheck.",
+    calc_box(
+        SEG("type", "Employee is paid", [("hourly", "Hourly"), ("salary", "Salary")], "hourly") +
+        when("type=hourly", N("rate", "Hourly rate", 22, "$") + N("hours", "Regular hours this period", 80) + N("ot", "Overtime hours (1.5×)", 0, full=True)) +
+        when("type=salary", N("amt", "Yearly salary", 55000, "$", full=True)) +
+        S("freq", "Pay frequency", [(26, "Every 2 weeks"), (52, "Weekly"), (24, "Twice a month"), (12, "Monthly")], 26) +
+        S("status", "Employee filing status", [("single", "Single"), ("mfj", "Married filing jointly"), ("hoh", "Head of household")], "single") +
+        N("k401", "401(k) deferral", 0, suf="%") + N("srate", "State income tax rate", 0, suf="%") +
+        N("suta", "Your state unemployment (SUTA) rate", 2.7, suf="%") + N("sutabase", "SUTA wage base", 9000, "$", suf="/ yr"),
+        PAYROLL_JS, title="Paycheck details"),
+    """<h2>How to run payroll</h2><ol><li><b>Gross pay:</b> hours × rate, with overtime at 1.5× for hours over 40 in a week, or salary ÷ pay periods.</li><li><b>Withhold from the employee:</b> federal income tax (based on their W-4), Social Security (6.2%), Medicare (1.45%), state tax and any benefits.</li><li><b>Pay employer taxes:</b> you match Social Security and Medicare, plus federal (FUTA) and state (SUTA) unemployment tax.</li></ol>
+<h2>2026 payroll tax rates</h2><ul><li><b>Social Security:</b> 6.2% from the employee + 6.2% from you, on wages up to $184,500.</li><li><b>Medicare:</b> 1.45% + 1.45%, no limit. Employees also pay an extra 0.9% on wages over $200,000.</li><li><b>FUTA:</b> 0.6% on the first $7,000 per employee after the normal state credit.</li><li><b>SUTA:</b> set by your state. New employers often get a starter rate; check your state's workforce agency.</li></ul>""")
+
+add("employer-payroll-tax-calculator", "Business", "🏢", "Employer Payroll Tax Calculator", "What you owe on top of wages",
+    "Employer Payroll Tax Calculator 2026 – FICA, FUTA & SUTA",
+    "Free employer payroll tax calculator. See how much you owe in Social Security, Medicare, FUTA and state unemployment tax for your employees in 2026.",
+    calc_box(N("wage", "Yearly wages per employee", 50000, "$") + N("count", "Number of employees", 5) +
+        N("suta", "State unemployment (SUTA) rate", 2.7, suf="%") + N("sutabase", "SUTA wage base", 9000, "$"),
+        """calc(v=>{const w=v.wage||0,c=Math.max(1,Math.round(v.count||1));if(!(w>0))return null;const ss=Math.min(w,TAX2026.ssBase)*.062,med=w*.0145,futa=Math.min(w,7000)*.006,suta=Math.min(w,v.sutabase||0)*(v.suta||0)/100,per=ss+med+futa+suta;
+return{big:["Employer taxes per year",money(per*c,0)],sub:money(per,0)+" per employee · "+pct(per/w*100,2)+" of wages",rows:[["Social Security (6.2%)",money(ss*c,0)],["Medicare (1.45%)",money(med*c,0)],["FUTA (0.6% of first $7,000)",money(futa*c,0)],["State unemployment",money(suta*c,0)],["Per employee, per month",money(per/12,0)],["Total payroll cost",money((w+per)*c,0)]],chart:donut([["Social Security",ss],["Medicare",med],["FUTA",futa],["SUTA",suta]].filter(x=>x[1]>0))}})"""),
+    """<h2>What payroll taxes do employers pay?</h2><p>On top of wages, employers pay their half of FICA (Social Security 6.2% and Medicare 1.45%), federal unemployment tax (FUTA) and state unemployment tax (SUTA). Most small businesses pay about 8–10% of wages in employer payroll taxes.</p>
+<h2>About FUTA and SUTA</h2><p>FUTA is 6.0% on the first $7,000 of each employee's wages, but most employers get a 5.4% credit for paying state unemployment tax, so the effective rate is 0.6%. Employers in a few "credit reduction" states pay a bit more. SUTA rates and wage bases are set by each state.</p>""")
+
+add("cost-of-employee-calculator", "Business", "🧮", "Cost of an Employee Calculator", "True cost of hiring with taxes & benefits",
+    "Cost of an Employee Calculator – True Cost to Hire in 2026",
+    "Free cost of employee calculator. See the true yearly and hourly cost of hiring someone, including payroll taxes, health insurance, retirement match and overhead.",
+    calc_box(N("wage", "Yearly salary or wages", 50000, "$", full=True) + N("health", "Health insurance (your share)", 600, "$", suf="/ mo") + N("match", "Retirement match", 3, suf="%") +
+        N("wc", "Workers' comp insurance", 1.0, suf="% of pay") + N("suta", "State unemployment rate", 2.7, suf="%") + N("other", "Other benefits & perks", 1000, "$", suf="/ yr") + N("equip", "Equipment, software & space", 3000, "$", suf="/ yr") +
+        N("hours", "Hours worked per year", 2080, full=True),
+        """calc(v=>{const w=v.wage||0;if(!(w>0))return null;const fica=Math.min(w,TAX2026.ssBase)*.062+w*.0145,futa=Math.min(w,7000)*.006,suta=Math.min(w,9000)*(v.suta||0)/100,tax=fica+futa+suta,hl=(v.health||0)*12,mt=w*(v.match||0)/100,wc=w*(v.wc||0)/100,ben=hl+mt+wc+(v.other||0),tot=w+tax+ben+(v.equip||0);
+return{big:["True yearly cost",money(tot,0)],sub:pct(tot/w*100,0)+" of their pay · "+money(tot/(v.hours||2080))+" per hour worked",rows:[["Salary / wages",money(w,0)],["Payroll taxes",money(tax,0)],["Health insurance",money(hl,0)],["Retirement match",money(mt,0)],["Workers' comp",money(wc,0)],["Other benefits",money(v.other||0,0)],["Equipment & space",money(v.equip||0,0)],["Cost per month",money(tot/12,0)]],chart:donut([["Wages",w],["Payroll taxes",tax],["Benefits",ben],["Equipment & space",v.equip||0]].filter(x=>x[1]>0)),note:"State unemployment uses a $9,000 wage base here. Check your state's actual base."}})"""),
+    """<h2>How much does an employee really cost?</h2><p>A common rule of thumb is <b>1.25 to 1.4 times their salary</b>. On top of wages you pay payroll taxes, benefits like health insurance and retirement match, workers' comp insurance, and the tools and space they need to do the job.</p>
+<h2>Employee vs. contractor</h2><p>Independent contractors cost less in taxes and benefits, but you can't control how and when they work like an employee. Misclassifying workers can lead to back taxes and penalties, so check the IRS rules before deciding.</p>""")
+
 # ---------- home ----------
 K = lambda k, cls="", lab=None: f'<button class="{cls}" data-k="{k}">{lab or k}</button>'
 KEYS = "".join([
