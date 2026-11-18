@@ -587,11 +587,36 @@ HOME_TOOL = f'''<div class="home"><div id="sci"><div class="screen"><div id="sci
 # x² key helper: "^2" is inserted as text, works with ^ operator
 
 # ---------- page template ----------
+UPDATED = "November 2026"
+SRC = {
+ "irs_brackets": ('IRS Rev. Proc. 2025-32: 2026 tax brackets & standard deduction (summary by Tax Foundation)', "https://taxfoundation.org/data/all/federal/2026-tax-brackets/"),
+ "ssa_base": ("Social Security Administration: contribution and benefit base", "https://www.ssa.gov/oact/cola/cbb.html"),
+ "irs_se": ("IRS Topic 554: Self-employment tax", "https://www.irs.gov/taxtopics/tc554"),
+ "irs_p15": ("IRS Publication 15: Employer's Tax Guide", "https://www.irs.gov/publications/p15"),
+ "irs_futa": ("IRS Topic 759: Form 940, federal unemployment (FUTA) tax", "https://www.irs.gov/taxtopics/tc759"),
+ "irs_est": ("IRS: Estimated taxes", "https://www.irs.gov/faqs/estimated-tax"),
+ "sba": ("U.S. Small Business Administration: loans", "https://www.sba.gov/funding-programs/loans"),
+ "cfpb_dti": ("CFPB: What is a debt-to-income ratio?", "https://www.consumerfinance.gov/ask-cfpb/what-is-a-debt-to-income-ratio-en-1791/"),
+ "solar": ("EnergySage: Federal solar tax credit in 2026", "https://energysage.com/solar/solar-tax-credit-explained"),
+}
+PAGE_SRC = {"paycheck": ["irs_brackets", "ssa_base"], "self-employment-tax-calculator": ["irs_se", "irs_brackets", "ssa_base", "irs_est"],
+ "payroll-calculator": ["irs_p15", "irs_brackets", "ssa_base", "irs_futa"], "employer-payroll-tax-calculator": ["irs_p15", "ssa_base", "irs_futa"],
+ "cost-of-employee-calculator": ["irs_p15", "irs_futa"], "sba-loan-calculator": ["sba"], "house-affordability-calculator": ["cfpb_dti"], "solar-panel-calculator": ["solar"]}
+MONEY = {"Financial", "Business"}
+
+def trust(slug, cat):
+    if cat not in MONEY: return ""
+    keys = PAGE_SRC.get("paycheck" if slug.endswith("paycheck-calculator") else slug, [])
+    src = ""
+    if keys:
+        src = "<h2>Sources</h2><ul>" + "".join(f'<li><a href="{SRC[k][1]}" rel="nofollow noopener" target="_blank">{SRC[k][0]}</a></li>' for k in keys) + "</ul>"
+    return src + f'<p class="trustline">✓ Updated {UPDATED} · <a href="how-we-calculate">How we calculate</a> · Results are estimates for planning, not financial, tax or legal advice.</p>'
+
 def page(slug, title, desc, h1, sub, tool, content, crumb=None, related=""):
     url = DOMAIN + "/" + ("" if slug == "index" else slug)
     nav_items = [("./", "All calculators", "index")] + [(s, BYSLUG[s]["name"].replace(" Calculator", ""), s) for s in ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator"]]
     nav = "".join(f'<a href="{u}"{" class=active" if k == slug else ""}>{t}</a>' for u, t, k in nav_items)
-    ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": h1, "url": url, "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
+    ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": h1, "url": url, "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "publisher": {"@type": "Organization", "name": SITE, "url": DOMAIN}}
     cr = f'<div class="crumbs"><a href="./">Calculators</a> › {crumb}</div>' if crumb else ""
     foot = "".join(f'<a href="{c["slug"]}">{c["name"]}</a>' for c in CALCS if not c["hidden"])
     return f"""<!DOCTYPE html>
@@ -618,10 +643,10 @@ def page(slug, title, desc, h1, sub, tool, content, crumb=None, related=""):
 <script src="calc.js"></script>
 {tool}
 <div class="ad">Ad space</div>
-<section class="content">{content}</section>
+<section class="content">{content}{trust(slug, crumb)}</section>
 {related}
 </main>
-<footer><div class="wrap"><div class="foot-cols">{foot}</div>© {SITE} · Free online calculators · <a href="privacy">Privacy</a></div></footer>
+<footer><div class="wrap"><div class="foot-cols">{foot}</div>© {SITE} · Free online calculators · <a href="about">About</a> · <a href="how-we-calculate">How we calculate</a> · <a href="privacy">Privacy</a></div></footer>
 </body>
 </html>
 """
@@ -640,6 +665,21 @@ for c in CALCS:
     related = '<section class="related"><h2>Related calculators</h2><div class="grid-cards">' + "".join(card(x) for x in rel) + "</div></section>"
     pages.append((c["slug"], page(c["slug"], c["title"], c["desc"], c["name"], c["desc"].split(". ")[1] if ". " in c["desc"] else c["desc"],
                                   c["tool"], c["content"], crumb=c["cat"], related=related)))
+
+pages.append(("about", page("about", "About Us", f"About {SITE}: free, accurate online calculators for money, business, math and everyday life.", "About YourCalculatorApp", "Free, accurate calculators anyone can use.", "",
+    f"""<h2>Our mission</h2><p>{SITE} makes free, easy calculators that give clear answers in seconds. Whether you're checking a paycheck, planning a budget, pricing a product or helping with homework, we want you to get a trustworthy number without ads getting in the way, sign-ups or confusing jargon.</p>
+<h2>What makes our calculators different</h2><ul><li><b>Accurate and up to date:</b> money and tax tools use official 2026 figures from the IRS, the Social Security Administration and other government sources. See <a href="how-we-calculate">how we calculate</a>.</li><li><b>Tested:</b> every calculator is checked against worked examples and published figures before it goes live.</li><li><b>Private:</b> all calculations run in your browser. The numbers you enter are never sent to our servers.</li><li><b>Explained:</b> each page shows the formula and plain-English tips, so you understand the answer and not just the number.</li></ul>
+<h2>Independent</h2><p>{SITE} is an independent site. We aren't affiliated with any bank, lender, tax software company or government agency. We may show ads to keep the site free, but advertisers never influence our calculations.</p>
+<h2>Found a mistake? Tell us</h2><p>We fix errors fast. If a result looks wrong or a rate has changed, email us at {CONTACT} and we'll review it.</p>""")))
+
+pages.append(("how-we-calculate", page("how-we-calculate", "How We Calculate – Methods & Sources", f"The formulas, assumptions and official sources behind every {SITE} calculator, including 2026 tax brackets and payroll tax rates.", "How We Calculate", "The formulas, assumptions and sources behind our calculators.", "",
+    """<h2>Our process</h2><ol><li>We build each calculator from the standard formula used by lenders, accountants or the government agency involved.</li><li>We pull rates and limits from official sources and note the year they apply to.</li><li>We test results against worked examples and published figures before launch.</li><li>We review tax and payroll figures at least once a year, when the IRS and SSA publish new numbers.</li></ol>
+<h2>2026 tax figures we use</h2><ul><li><b>Federal income tax brackets:</b> 10%, 12%, 22%, 24%, 32%, 35% and 37%, with 2026 thresholds from IRS Revenue Procedure 2025-32. For single filers, 12% starts above $12,400, 22% above $50,400 and 37% above $640,600.</li><li><b>Standard deduction:</b> $16,100 single, $32,200 married filing jointly, $24,150 head of household.</li><li><b>Social Security:</b> 6.2% each for employee and employer on wages up to $184,500 (the 2026 wage base).</li><li><b>Medicare:</b> 1.45% each with no limit, plus 0.9% Additional Medicare Tax on employee wages over $200,000.</li><li><b>Self-employment tax:</b> 15.3% on 92.35% of net profit, with half deductible for income tax.</li><li><b>FUTA:</b> 0.6% on the first $7,000 of each employee's wages, after the standard state credit.</li></ul>
+<h2>Paycheck and payroll estimates</h2><p>Paycheck calculators annualize your pay, subtract pre-tax 401(k) and health insurance, apply the standard deduction and the 2026 brackets, then divide back to a single paycheck. Real withholding follows your W-4 and the IRS withholding tables in Publication 15-T, so your actual paycheck can differ slightly, especially if you have other income, dependents or extra withholding.</p>
+<h2>Loans and mortgages</h2><p>Loan payments use the standard amortization formula: payment = principal × r ÷ (1 − (1 + r)<sup>−n</sup>). Business loan "true APR" includes upfront fees by finding the interest rate that matches the cash you actually receive to the payments you make. Home affordability uses the 28/36 debt-to-income guideline.</p>
+<h2>Health calculators</h2><p>BMI uses the standard weight ÷ height² formula with adult categories. Calorie needs use the Mifflin-St Jeor equation with common activity multipliers. These are general estimates, not medical advice.</p>
+<h2>Limitations</h2><p>Our calculators give estimates for planning. They don't cover every situation, such as state-specific deductions and credits, local taxes, or special loan terms. For important decisions, check with a tax professional, lender or financial advisor.</p>
+<h2>Official sources</h2><ul>""" + "".join(f'<li><a href="{u}" rel="nofollow noopener" target="_blank">{n}</a></li>' for n, u in SRC.values()) + "</ul>")))
 
 pages.append(("privacy", page("privacy", "Privacy Policy", "Privacy policy for " + SITE, "Privacy Policy", "How we handle your data.", "",
     f"""<h2>Your numbers stay on your device</h2><p>Every calculator on this site runs inside your web browser. The numbers you type are never sent to our servers or stored by us. Calculator history is saved only in your own browser.</p>

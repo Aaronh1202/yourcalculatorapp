@@ -187,3 +187,5 @@ table.grid th:first-child,table.grid td:first-child{width:28%}
  .invoice{box-shadow:none;border-radius:0;padding:0;position:static}
  .iv-due{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+.trustline{margin-top:24px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:.88rem;color:var(--muted)}
