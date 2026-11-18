@@ -215,3 +215,4 @@ table.grid th:first-child,table.grid td:first-child{width:28%}
 .cv-links a:hover{border-color:var(--accent)}
 .cv-units{columns:2}
 @media(max-width:520px){.cv-row input{font-size:1.1rem;padding:12px}.cv-units{columns:1}}
+.ad:empty{display:none!important}

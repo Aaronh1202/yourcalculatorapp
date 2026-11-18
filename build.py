@@ -648,7 +648,7 @@ def page(slug, title, desc, h1, sub, tool, content, crumb=None, related=""):
 <section class="hero">{cr}<h1>{h1}</h1><p>{sub}</p><div class="trust"><span>✨ 100% free</span><span>⚡ Instant answers</span><span>🔒 Private</span><span>📱 Works on phone</span></div></section>
 <script src="calc.js"></script>
 {tool}
-<div class="ad">Ad space</div>
+<div class="ad"></div>
 <section class="content">{content}{trust(slug, crumb)}</section>
 {related}
 </main>
@@ -706,3 +706,6 @@ urls = "".join(f"<url><loc>{DOMAIN}/{'' if s == 'index' else s}</loc></url>" for
 (OUT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
 (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {DOMAIN}/sitemap.xml\n")
 print("built", len(pages), "pages")
+
+import adready, more_content
+adready.run(OUT, SITE, DOMAIN, "All calculators and converters on this site", extra=more_content.build_extra())
