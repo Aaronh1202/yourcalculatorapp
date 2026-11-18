@@ -189,3 +189,29 @@ table.grid th:first-child,table.grid td:first-child{width:28%}
 }
 
 .trustline{margin-top:24px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:.88rem;color:var(--muted)}
+
+/* Unit converters */
+.conv{max-width:760px;margin:18px auto 0;display:grid;gap:10px}
+.conv #cv-cat{padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-weight:700}
+.cv-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cv-row input,.cv-row select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-size:1.25rem;font-weight:700;min-width:0}
+.cv-row select{font-size:1rem;font-weight:600}
+.cv-row input:focus,.cv-row select:focus{outline:2px solid var(--accent);border-color:transparent}
+.cv-swap{justify-self:center;width:44px;height:44px;border-radius:50%;border:0;background:var(--grad);color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:var(--shadow)}
+.cv-res{text-align:center;padding:14px;border-radius:14px;background:var(--accent2);font-size:1.05rem}
+.cv-res .big{font-size:1.5rem;color:var(--accent)}.cv-res small{display:block;color:var(--muted);font-size:.95rem;margin-top:2px}
+.cv-all{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.cv-all button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;cursor:pointer;text-align:left}
+.cv-all button span{font-size:.8rem;color:var(--muted)}.cv-all button b{word-break:break-all}
+.cv-all button:hover{border-color:var(--accent)}
+.formula{background:var(--accent2);padding:12px 16px;border-radius:12px;font-weight:700;font-size:1.05rem}
+.cv-table{width:100%;max-width:520px;border-collapse:collapse;margin:8px 0}
+.cv-table th,.cv-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
+.cv-table th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.cv-table tr:nth-child(even) td{background:var(--accent2)}
+.cv-table .muted{color:var(--muted);font-weight:400}
+.cv-links{display:flex;flex-wrap:wrap;gap:8px}
+.cv-links a{padding:7px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);text-decoration:none;font-weight:600;font-size:.9rem}
+.cv-links a:hover{border-color:var(--accent)}
+.cv-units{columns:2}
+@media(max-width:520px){.cv-row input{font-size:1.1rem;padding:12px}.cv-units{columns:1}}

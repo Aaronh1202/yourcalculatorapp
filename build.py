@@ -1,8 +1,10 @@
 import re, json, os, pathlib, shutil, datetime
+import converters as CV
 OUT = pathlib.Path("public")
 if OUT.exists(): shutil.rmtree(OUT)
 OUT.mkdir()
-for f in ["style.css", "calc.js", "sci.js", "invoice.js"]: shutil.copy("static/" + f, OUT / f)
+for f in ["style.css", "calc.js", "sci.js", "invoice.js", "convert.js"]: shutil.copy("static/" + f, OUT / f)
+(OUT / "units.js").write_text(CV.unit_js())
 SITE = "YourCalculatorApp"
 DOMAIN = "https://yourcalculatorapp.com"
 CONTACT = os.environ.get("CONTACT_EMAIL", "hello@example.com")
@@ -577,7 +579,11 @@ def card(c):
     bg, col = CAT_COL[c["cat"]]
     return f'<a class="card" href="{c["slug"]}" style="--bgc:{bg};--c:{col}"><div class="e">{c["emoji"]}</div><div><b>{c["name"]}</b><span>{c["card"]}</span></div></a>'
 
-CAT_HTML = '<section class="cats">' + "".join(f'<h2>{e} {cat} calculators</h2><div class="grid-cards">' + "".join(card(c) for c in CALCS if c["cat"] == cat and not c["hidden"]) + "</div>" for cat, e in CATS) + "</section>"
+def ccard(k):
+    c = CV.CATS[k]
+    return f'<a class="card" href="{CV.HUB[k]}" style="--bgc:#ede9fe;--c:#7c3aed"><div class="e">{c["emoji"]}</div><div><b>{c["name"]} Converter</b><span>{", ".join(d[2] for d in list(c["units"].values())[:5])}</span></div></a>'
+CONV_HTML = '<h2>🔁 Unit converters</h2><div class="grid-cards">' + '<a class="card" href="unit-converter" style="--bgc:#ede9fe;--c:#7c3aed"><div class="e">🔁</div><div><b>Unit Converter</b><span>All units in one place</span></div></a>' + "".join(ccard(k) for k in CV.CATS) + '</div><div class="cv-links" style="margin-top:12px">' + "".join(f'<a href="{s}">{n}</a>' for s, n in [("cm-to-inches", "CM to Inches"), ("kg-to-lbs", "KG to LBS"), ("celsius-to-fahrenheit", "Celsius to Fahrenheit"), ("fahrenheit-to-celsius", "Fahrenheit to Celsius"), ("inches-to-cm", "Inches to CM"), ("lbs-to-kg", "LBS to KG"), ("feet-to-meters", "Feet to Meters"), ("km-to-miles", "KM to Miles"), ("ml-to-oz", "ML to Oz"), ("cm-to-feet", "CM to Feet")]) + "</div>"
+CAT_HTML = '<section class="cats">' + "".join(f'<h2>{e} {cat} calculators</h2><div class="grid-cards">' + "".join(card(c) for c in CALCS if c["cat"] == cat and not c["hidden"]) + "</div>" for cat, e in CATS) + CONV_HTML + "</section>"
 POPULAR = ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator", "gpa-calculator", "hours-calculator"]
 BYSLUG = {c["slug"]: c for c in CALCS}
 HOME_TOOL = f'''<div class="home"><div id="sci"><div class="screen"><div id="sci-expr"></div><div id="sci-display">0</div></div><div class="keys">{KEYS}</div></div>
@@ -614,11 +620,11 @@ def trust(slug, cat):
 
 def page(slug, title, desc, h1, sub, tool, content, crumb=None, related=""):
     url = DOMAIN + "/" + ("" if slug == "index" else slug)
-    nav_items = [("./", "All calculators", "index")] + [(s, BYSLUG[s]["name"].replace(" Calculator", ""), s) for s in ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator"]]
+    nav_items = [("./", "All calculators", "index")] + [(s, BYSLUG[s]["name"].replace(" Calculator", ""), s) for s in ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator"]] + [("unit-converter", "Converters", "unit-converter")]
     nav = "".join(f'<a href="{u}"{" class=active" if k == slug else ""}>{t}</a>' for u, t, k in nav_items)
     ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": h1, "url": url, "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "publisher": {"@type": "Organization", "name": SITE, "url": DOMAIN, "founder": {"@type": "Person", "name": "Aaron Hernandez"}}}
     cr = f'<div class="crumbs"><a href="./">Calculators</a> › {crumb}</div>' if crumb else ""
-    foot = "".join(f'<a href="{c["slug"]}">{c["name"]}</a>' for c in CALCS if not c["hidden"])
+    foot = "".join(f'<a href="{c["slug"]}">{c["name"]}</a>' for c in CALCS if not c["hidden"]) + '<a href="unit-converter">Unit Converter</a>' + "".join(f'<a href="{CV.HUB[k]}">{CV.CATS[k]["name"]} Converter</a>' for k in CV.CATS)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -665,6 +671,9 @@ for c in CALCS:
     related = '<section class="related"><h2>Related calculators</h2><div class="grid-cards">' + "".join(card(x) for x in rel) + "</div></section>"
     pages.append((c["slug"], page(c["slug"], c["title"], c["desc"], c["name"], c["desc"].split(". ")[1] if ". " in c["desc"] else c["desc"],
                                   c["tool"], c["content"], crumb=c["cat"], related=related)))
+
+for cp in CV.all_pages():
+    pages.append((cp["slug"], page(cp["slug"], cp["title"], cp["desc"], cp["h1"], cp["sub"], cp["tool"], cp["content"], crumb="Converters")))
 
 pages.append(("about", page("about", "About Us", f"About {SITE}: free, accurate online calculators for money, business, math and everyday life.", "About YourCalculatorApp", "Free, accurate calculators anyone can use.", "",
     f"""<h2>Our mission</h2><p>{SITE} makes free, easy calculators that give clear answers in seconds. Whether you're checking a paycheck, planning a budget, pricing a product or helping with homework, we want you to get a trustworthy number without ads getting in the way, sign-ups or confusing jargon.</p>
