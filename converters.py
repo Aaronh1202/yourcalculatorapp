@@ -127,6 +127,20 @@ PAIRS = [
  ("kb-to-mb", "data", "KB", "MB", "KB to MB", [1, 10, 100, 250, 500, 750, 1000, 2000, 5000, 10000]),
  ("mb-to-kb", "data", "MB", "KB", "MB to KB", [0.1, 0.5, 1, 2, 5, 10, 25, 50, 100]),
  ("bits-to-bytes", "data", "bit", "B", "Bits to Bytes", [1, 8, 16, 32, 64, 128, 256, 512, 1024]),
+ ("liters-to-ml", "volume", "l", "ml", "Liters to mL", [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 10]),
+ ("quarts-to-liters", "volume", "qt", "l", "Quarts to Liters", [0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12]),
+ ("liters-to-quarts", "volume", "l", "qt", "Liters to Quarts", [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10]),
+ ("pints-to-cups", "volume", "pt", "cup", "Pints to Cups", [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8]),
+ ("cups-to-quarts", "volume", "cup", "qt", "Cups to Quarts", [1, 2, 3, 4, 6, 8, 10, 12, 16]),
+ ("gallons-to-quarts", "volume", "gal", "qt", "Gallons to Quarts", [0.5, 1, 2, 3, 4, 5, 10]),
+ ("miles-to-meters", "length", "mi", "m", "Miles to Meters", [0.25, 0.5, 1, 1.5, 2, 3, 5, 10]),
+ ("meters-to-miles", "length", "m", "mi", "Meters to Miles", [100, 200, 400, 800, 1000, 1500, 1609, 3000, 5000, 10000]),
+ ("feet-to-miles", "length", "ft", "mi", "Feet to Miles", [100, 500, 1000, 2640, 5000, 5280, 10000, 20000]),
+ ("lbs-to-stone", "weight", "lb", "st", "Pounds to Stone", [100, 120, 140, 150, 160, 180, 200, 220, 250]),
+ ("kg-to-ounces", "weight", "kg", "oz", "KG to Ounces", [0.1, 0.25, 0.5, 1, 1.5, 2, 3, 5]),
+ ("square-yards-to-square-feet", "area", "yd2", "ft2", "Square Yards to Square Feet", [1, 2, 5, 10, 20, 50, 100, 500]),
+ ("weeks-to-days", "time", "wk", "d", "Weeks to Days", [1, 2, 3, 4, 6, 8, 10, 12, 16, 26, 40, 52]),
+ ("days-to-hours", "time", "d", "h", "Days to Hours", [0.5, 1, 1.5, 2, 3, 4, 5, 7, 10, 14, 30]),
 ]
 
 # extra facts for the most-searched pairs
@@ -153,6 +167,10 @@ NOTES = {
  "kmh-to-mph": "Common speed limits: 50 km/h ≈ 31 mph, 100 km/h ≈ 62 mph and 130 km/h ≈ 81 mph.",
  "mph-to-kmh": "Common speed limits: 25 mph ≈ 40 km/h, 55 mph ≈ 89 km/h and 70 mph ≈ 113 km/h.",
  "minutes-to-hours": "To turn decimal hours into hours and minutes, multiply the decimal part by 60. For example, 1.75 hours = 1 hour and 45 minutes.",
+ "lbs-to-stone": "A stone is exactly 14 pounds, so divide pounds by 14. For example, 168 lb is exactly 12 stone.",
+ "meters-to-miles": "Runners often meet these: 400 m is one lap of a standard track, 1,609 m is one mile and 1,500 m is the \"metric mile.\"",
+ "feet-to-miles": "A mile is exactly 5,280 feet, so half a mile is 2,640 feet.",
+ "weeks-to-days": "A full-term pregnancy is about 40 weeks, or 280 days. A year has 52 weeks plus 1 day (2 days in a leap year).",
  "stone-to-lbs": "A stone is exactly 14 pounds. It's still commonly used for body weight in the UK and Ireland.",
 }
 

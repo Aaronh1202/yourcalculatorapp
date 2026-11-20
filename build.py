@@ -584,6 +584,9 @@ def ccard(k):
     return f'<a class="card" href="{CV.HUB[k]}" style="--bgc:#ede9fe;--c:#7c3aed"><div class="e">{c["emoji"]}</div><div><b>{c["name"]} Converter</b><span>{", ".join(d[2] for d in list(c["units"].values())[:5])}</span></div></a>'
 CONV_HTML = '<h2>🔁 Unit converters</h2><div class="grid-cards">' + '<a class="card" href="unit-converter" style="--bgc:#ede9fe;--c:#7c3aed"><div class="e">🔁</div><div><b>Unit Converter</b><span>All units in one place</span></div></a>' + "".join(ccard(k) for k in CV.CATS) + '</div><div class="cv-links" style="margin-top:12px">' + "".join(f'<a href="{s}">{n}</a>' for s, n in [("cm-to-inches", "CM to Inches"), ("kg-to-lbs", "KG to LBS"), ("celsius-to-fahrenheit", "Celsius to Fahrenheit"), ("fahrenheit-to-celsius", "Fahrenheit to Celsius"), ("inches-to-cm", "Inches to CM"), ("lbs-to-kg", "LBS to KG"), ("feet-to-meters", "Feet to Meters"), ("km-to-miles", "KM to Miles"), ("ml-to-oz", "ML to Oz"), ("cm-to-feet", "CM to Feet")]) + "</div>"
 CAT_HTML = '<section class="cats">' + "".join(f'<h2>{e} {cat} calculators</h2><div class="grid-cards">' + "".join(card(c) for c in CALCS if c["cat"] == cat and not c["hidden"]) + "</div>" for cat, e in CATS) + CONV_HTML + "</section>"
+import more_calcs
+more_calcs.register(add, N, S, SEG, D, calc_box)
+
 POPULAR = ["paycheck-calculator", "mortgage-calculator", "percentage-calculator", "tip-calculator", "age-calculator", "gpa-calculator", "hours-calculator"]
 BYSLUG = {c["slug"]: c for c in CALCS}
 HOME_TOOL = f'''<div class="home"><div id="sci"><div class="screen"><div id="sci-expr"></div><div id="sci-display">0</div></div><div class="keys">{KEYS}</div></div>
